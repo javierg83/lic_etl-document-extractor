@@ -1,0 +1,10 @@
+langgraph
+langchain
+langchain-openai
+langchain-community
+redis
+pymupdf
+python-dotenv
+openai
+pydantic
+psycopg2-binary
