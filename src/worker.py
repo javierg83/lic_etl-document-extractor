@@ -8,7 +8,7 @@ from src.config import (
     REDIS_HOST, REDIS_PORT, REDIS_DB, REDIS_USERNAME, REDIS_PASSWORD,
     DB_POSTGRES_NAME, DB_POSTGRES_USER, DB_POSTGRES_PASSWORD, DB_POSTGRES_HOST, DB_POSTGRES_PORT
 )
-from src.graph import build_simple_graph
+from src.graph.batch_processor import build_batch_processor
 
 def get_db_connection():
     return psycopg2.connect(
@@ -27,8 +27,6 @@ def process_licitacion(licitacion_id):
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # Consultar archivos pendientes para la licitación
-        # Según lic_backend/src/features/licitaciones/actions/new/service.py:84
-        # La tabla es licitacion_archivos y tiene licitacion_id y nombre_archivo_org
         query = "SELECT nombre_archivo_org, ruta_almacenamiento FROM licitacion_archivos WHERE licitacion_id = %s"
         cursor.execute(query, (licitacion_id,))
         files = cursor.fetchall()
@@ -43,16 +41,27 @@ def process_licitacion(licitacion_id):
         for f in files:
             print(f"  - {f['nombre_archivo_org']}")
 
-        # Re-construir el grafo simplificado
-        app = build_simple_graph()
+        # Usar el nuevo Batch Processor
+        app = build_batch_processor()
         
-        for f in files:
-            initial_state = {
-                "pdf_files": [f['ruta_almacenamiento']], 
-                "current_index": 0,
-                "status": "init"
-            }
-            app.invoke(initial_state)
+        # Preparar lista de rutas para el grafo
+        pdf_paths = [f['ruta_almacenamiento'] for f in files]
+        
+        initial_state = {
+            "pdf_files": pdf_paths, 
+            "current_index": 0,
+            "status": "init"
+        }
+        
+        # Ejecutar orquestador del lote
+        final_state = app.invoke(initial_state)
+        
+        print("\n📊 Resumen final del lote:")
+        for file, status in final_state.get("file_states", {}).items():
+            print(f"  - {os.path.basename(file)}: {status}")
+            
+    except Exception as e:
+        print(f"❌ Error procesando licitación {licitacion_id}: {e}")
             
     except Exception as e:
         print(f"❌ Error procesando licitación {licitacion_id}: {e}")

@@ -1,0 +1,94 @@
+import os
+from langgraph.graph import StateGraph, END
+from src.graph.document_processor import build_document_processor
+from src.nodes.load_pdfs import LoadPdfsNode
+
+# Subgrafo compilado
+document_processor = build_document_processor()
+
+# Nodos del Grafo Padre (Batch)
+class BatchNodes:
+    @staticmethod
+    def node_load_pending(state: dict) -> dict:
+        """Carga los archivos y marca el estado inicial."""
+        print("📁 [Batch] Buscando archivos pendientes...")
+        state = LoadPdfsNode.execute(state)
+        if state.get("status") == "ok":
+            # Inicializar estados de archivos si no existen
+            pdf_files = state.get("pdf_files", [])
+            state["file_states"] = {f: "pendiente" for f in pdf_files}
+        return state
+
+    @staticmethod
+    def node_process_document(state: dict) -> dict:
+        """Llama al subgrafo para el archivo actual."""
+        pdf_files = state.get("pdf_files", [])
+        idx = state.get("current_index", 0)
+        
+        if idx >= len(pdf_files):
+            return state
+
+        current_file = pdf_files[idx]
+        print(f"🚀 [Batch] Procesando: {os.path.basename(current_file)} ({idx+1}/{len(pdf_files)})")
+        
+        # Cambiar estado a 'procesando'
+        state["file_states"][current_file] = "procesando"
+        
+        # Preparar input para el subgrafo
+        sub_input = {
+            "pdf_files": [current_file],
+            "current_index": 0,
+            "current_pdf": current_file
+        }
+        
+        # Invocación sincrónica del subgrafo
+        result = document_processor.invoke(sub_input)
+        
+        # Actualizar estado final del archivo
+        if result.get("status") == "failed":
+            print(f"❌ [Batch] Error procesando {os.path.basename(current_file)}")
+            state["file_states"][current_file] = "error"
+        else:
+            print(f"✅ [Batch] Finalizado: {os.path.basename(current_file)}")
+            state["file_states"][current_file] = "procesado"
+        
+        # Avanzar índice
+        state["current_index"] = idx + 1
+        return state
+
+# Router para el bucle
+def router_batch_loop(state: dict):
+    pdf_files = state.get("pdf_files", [])
+    idx = state.get("current_index", 0)
+    
+    if idx < len(pdf_files):
+        return "process"
+    return "end"
+
+def build_batch_processor():
+    workflow = StateGraph(dict)
+
+    workflow.add_node("load_pending", BatchNodes.node_load_pending)
+    workflow.add_node("process_document", BatchNodes.node_process_document)
+
+    workflow.set_entry_point("load_pending")
+
+    workflow.add_edge("load_pending", "process_document")
+    
+    workflow.add_conditional_edges(
+        "process_document",
+        router_batch_loop,
+        {
+            "process": "process_document",
+            "end": END
+        }
+    )
+
+    return workflow.compile()
+
+if __name__ == "__main__":
+    app = build_batch_processor()
+    final_state = app.invoke({"current_index": 0})
+    print("\n📊 Resumen de Procesamiento:")
+    for file, status in final_state.get("file_states", {}).items():
+        print(f"- {os.path.basename(file)}: {status}")

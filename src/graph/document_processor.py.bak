@@ -1,0 +1,67 @@
+import os
+from typing import Literal
+from langgraph.graph import StateGraph, END
+
+# Importación de nodos existentes
+from src.nodes.classify_pdf import ClassifyPdfNode
+from src.nodes.extract_text_standard import ExtractTextStandardNode
+from src.nodes.extract_text_ocr import ExtractTextOcrNode
+from src.nodes.chunk_text import ChunkTextNode
+from src.nodes.generate_embeddings import GenerateEmbeddingsNode
+from src.nodes.save_to_redis import SaveToRedisNode
+
+# Envoltorios (estilo execute solicitado)
+def node_classify_pdf(state: dict) -> dict:
+    return ClassifyPdfNode.execute(state)
+
+def node_extract_text_standard(state: dict) -> dict:
+    return ExtractTextStandardNode.execute(state)
+
+def node_extract_text_ocr(state: dict) -> dict:
+    return ExtractTextOcrNode.execute(state)
+
+def node_chunk_text(state: dict) -> dict:
+    # Nota: El nodo chunk_text actual usa TOC, debemos asegurar que no falle si no existe
+    return ChunkTextNode.execute(state)
+
+def node_generate_embeddings(state: dict) -> dict:
+    return GenerateEmbeddingsNode.execute(state)
+
+def node_save_to_redis(state: dict) -> dict:
+    return SaveToRedisNode.execute(state)
+
+# Router
+def router_extraction(state: dict) -> Literal["extract_standard", "extract_ocr", "end"]:
+    if state.get("status") == "failed":
+        return "end"
+    return "extract_ocr" if state.get("is_scanned") else "extract_standard"
+
+def build_document_processor():
+    workflow = StateGraph(dict)
+
+    workflow.add_node("classify", node_classify_pdf)
+    workflow.add_node("extract_standard", node_extract_text_standard)
+    workflow.add_node("extract_ocr", node_extract_text_ocr)
+    workflow.add_node("chunking", node_chunk_text)
+    workflow.add_node("embeddings", node_generate_embeddings)
+    workflow.add_node("save", node_save_to_redis)
+
+    workflow.set_entry_point("classify")
+
+    workflow.add_conditional_edges(
+        "classify",
+        router_extraction,
+        {
+            "extract_standard": "extract_standard",
+            "extract_ocr": "extract_ocr",
+            "end": END
+        }
+    )
+
+    workflow.add_edge("extract_standard", "chunking")
+    workflow.add_edge("extract_ocr", "chunking")
+    workflow.add_edge("chunking", "embeddings")
+    workflow.add_edge("embeddings", "save")
+    workflow.add_edge("save", END)
+
+    return workflow.compile()
