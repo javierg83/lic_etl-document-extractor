@@ -10,6 +10,21 @@ class ProcessDocumentNode:
     @staticmethod
     def execute(state: dict) -> dict:
         """
+        Orquestador del nodo.
+        Maneja errores y garantiza que el grafo reciba un state consistente.
+        """
+        try:
+            return ProcessDocumentNode._run(state)
+        except Exception as e:
+            state["status"] = "failed"
+            state["error_node"] = "process_document"
+            state["error"] = str(e)
+            print(f"❌ Error en ProcessDocumentNode: {e}")
+            return state
+
+    @staticmethod
+    def _run(state: dict) -> dict:
+        """
         Llama al subgrafo para el archivo actual e informa el estado a la DB.
         """
         pdf_files = state.get("pdf_files", [])
@@ -66,3 +81,4 @@ class ProcessDocumentNode:
         # Avanzar índice
         state["current_index"] = idx + 1
         return state
+

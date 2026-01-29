@@ -1,9 +1,26 @@
-from src.nodes.load_pdfs import LoadPdfsNode
+import os
+from src.config import REPOSITORY
 from src.utils.db import get_pending_files
+
 
 class LoadPendingNode:
     @staticmethod
     def execute(state: dict) -> dict:
+        """
+        Orquestador del nodo.
+        Maneja errores y garantiza que el grafo reciba un state consistente.
+        """
+        try:
+            return LoadPendingNode._run(state)
+        except Exception as e:
+            state["status"] = "failed"
+            state["error_node"] = "load_pending"
+            state["error"] = str(e)
+            print(f"❌ Error en LoadPendingNode: {e}")
+            return state
+
+    @staticmethod
+    def _run(state: dict) -> dict:
         """
         Carga los archivos y marca el estado inicial.
         """
@@ -26,7 +43,30 @@ class LoadPendingNode:
                 print(f"⚠️ No se encontraron archivos pendientes para la licitación {licitacion_id}")
         else:
             print("📁 [Batch] Buscando archivos locales...")
-            state = LoadPdfsNode.execute(state)
+            repository = REPOSITORY
+            print(f"📂 Revisando repositorio: {repository}")
+            
+            # Si ya vienen archivos en el state (desde el Worker), no escaneamos el REPOSITORY
+            if not state.get("pdf_files"):
+                if not os.path.exists(repository):
+                    raise Exception(f"El directorio {repository} no existe.")
+                    
+                pdf_files = [os.path.join(repository, f) for f in os.listdir(repository) if f.lower().endswith('.pdf')]
+                
+                if not pdf_files:
+                    print("⚠️ No se encontraron archivos PDF.")
+                    state["pdf_files"] = []
+                    state["status"] = "no_files"
+                else:
+                    state["pdf_files"] = pdf_files
+                    state["status"] = "ok"
+                    print(f"✅ Se encontraron {len(pdf_files)} archivos PDF.")
+            else:
+                print(f"✅ Usando archivos proporcionados: {state['pdf_files']}")
+                state["status"] = "ok"
+            
+            state["current_index"] = 0
+
         
         if state.get("status") == "ok":
             # Inicializar estados de archivos si no existen
@@ -35,3 +75,4 @@ class LoadPendingNode:
                 state["file_states"] = {f: "PENDIENTE" for f in pdf_files}
         
         return state
+
