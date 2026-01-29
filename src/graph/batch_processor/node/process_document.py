@@ -1,5 +1,6 @@
 import os
-from src.graph.document_processor import build_document_processor
+from src.graph.document_processor.graph import build_document_processor
+
 from src.utils.db import change_status
 
 # El subgrafo se compila una vez fuera para eficiencia si se desea, 

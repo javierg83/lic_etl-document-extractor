@@ -5,7 +5,8 @@ import os
 from src.config import (
     REDIS_HOST, REDIS_PORT, REDIS_DB, REDIS_USERNAME, REDIS_PASSWORD
 )
-from src.graph.batch_processor import build_batch_processor
+from src.graph.batch_processor.graph import build_batch_processor
+
 from src.utils.db import get_db_connection
 
 def process_licitacion(licitacion_id):
