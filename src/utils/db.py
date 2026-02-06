@@ -5,13 +5,18 @@ from src.config import (
 )
 
 def get_db_connection():
-    return psycopg2.connect(
-        dbname=DB_POSTGRES_NAME,
-        user=DB_POSTGRES_USER,
-        password=DB_POSTGRES_PASSWORD,
-        host=DB_POSTGRES_HOST,
-        port=DB_POSTGRES_PORT
-    )
+    try:
+        return psycopg2.connect(
+            dbname=DB_POSTGRES_NAME,
+            user=DB_POSTGRES_USER,
+            password=DB_POSTGRES_PASSWORD,
+            host=DB_POSTGRES_HOST,
+            port=DB_POSTGRES_PORT
+        )
+    except Exception as e:
+        print(f"❌ [CRITICAL] Fallo al conectar a DB en {DB_POSTGRES_HOST}:{DB_POSTGRES_PORT}")
+        print(f"❌ Error: {e}")
+        raise e
 
 def get_pending_files(licitacion_id: int):
     """

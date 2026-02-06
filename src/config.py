@@ -26,3 +26,10 @@ DB_POSTGRES_HOST = get_env_variable("DB_POSTGRES_HOST")
 DB_POSTGRES_PORT = int(get_env_variable("DB_POSTGRES_PORT"))
 
 print("✅ Configuración cargada y validada correctamente.")
+
+print(f"🔍 [DEBUG] DB Host: {DB_POSTGRES_HOST}")
+print(f"🔍 [DEBUG] DB Port: {DB_POSTGRES_PORT}")
+print(f"🔍 [DEBUG] DB Name: {DB_POSTGRES_NAME}")
+print(f"🔍 [DEBUG] DB User: {DB_POSTGRES_USER}")
+# No imprimir contraseña completa, solo longitud o primeros caracteres si es seguro
+print(f"🔍 [DEBUG] DB Password Length: {len(str(DB_POSTGRES_PASSWORD))}")

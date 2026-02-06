@@ -28,7 +28,9 @@ class LoadPendingNode:
         
         if licitacion_id:
             print(f"📁 [Batch] Buscando archivos pendientes para Licitación {licitacion_id}...")
+            print(f"🔍 [DEBUG] Intentando obtener archivos pendientes para licitacion_id: {licitacion_id}")
             files = get_pending_files(licitacion_id)
+            print(f"✅ [DEBUG] Consulta exitosa, archivos encontrados: {len(files)}")
             
             pdf_files = [f["ruta_almacenamiento"] for f in files]
             # Mapeo de ruta a ID de base de datos para facilitar actualizaciones de estado

@@ -39,6 +39,17 @@ class SaveNode:
             db=REDIS_DB,
             decode_responses=False 
         )
+
+        # Verificación explícita de conexión
+        try:
+            r.ping()
+            print(f"🔍 [DEBUG] Conexión a Redis exitosa. Host: {REDIS_HOST}, DB: {REDIS_DB}")
+        except redis.exceptions.AuthenticationError:
+            print("❌ [ERROR] Falló la autenticación con Redis. Verifica la contraseña en .env")
+            raise
+        except Exception as e:
+            print(f"❌ [ERROR] Falló la conexión con Redis: {e}")
+            raise
         
         pipe = r.pipeline()
         for i, (chunk_data, vector) in enumerate(zip(chunks, embeddings)):

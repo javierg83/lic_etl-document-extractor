@@ -45,6 +45,19 @@ def main():
         password=REDIS_PASSWORD,
         decode_responses=True
     )
+
+    # --- TEMPORAL: Verificación de conexión al inicio ---
+    try:
+        print("🔍 Verificando conexión inicial con Redis...")
+        r.ping()
+        print("✅ Conexión inicial exitosa.")
+    except redis.exceptions.AuthenticationError:
+        print("❌ Error Fatal: Contraseña de Redis incorrecta.")
+        return
+    except Exception as e:
+        print(f"❌ Error Fatal: No se pudo conectar a Redis al inicio ({e})")
+        return
+    # ----------------------------------------------------
     
     while True:
         try:
