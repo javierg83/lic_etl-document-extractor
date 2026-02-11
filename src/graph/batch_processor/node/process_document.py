@@ -55,10 +55,14 @@ class ProcessDocumentNode:
             # ---------------------------------------
         
         # Preparar input para el subgrafo
+        filename_clean = os.path.splitext(os.path.basename(current_file))[0]
+        
         sub_input = {
             "pdf_files": [current_file],
             "current_index": 0,
-            "current_pdf": current_file
+            "current_pdf": current_file,
+            "licitacion_id": state.get("licitacion_id"),
+            "filename_clean": filename_clean
         }
         
         # Invocación sincrónica del subgrafo
