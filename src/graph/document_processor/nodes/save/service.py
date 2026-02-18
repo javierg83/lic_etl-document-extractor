@@ -5,13 +5,25 @@ from src.config import REDIS_HOST, REDIS_PORT, REDIS_DB, REDIS_USERNAME, REDIS_P
 
 class SaveService:
     @staticmethod
-    def save_to_redis(licitacion_id: str, filename_clean: str, file_path: str, chunks: list):
+    def save_to_redis(licitacion_id: str, filename_clean: str, file_path: str, chunks: list, 
+                      licitacion_internal_id: int = None, archivo_internal_id: int = None):
         """
         Guarda los chunks vectorizados en Redis usando estructura jeraquica:
-        - doc_raw:{filename} -> Metadata Padre
-        - doc_raw_page:{filename}:p{page}... -> Contenido
+        - doc_raw:{redis_doc_id} -> Metadata Padre
+        - doc_raw_page:{redis_doc_id}:p{page}... -> Contenido
+        
+        redis_doc_id format: <licitacion_internal_id>_<archivo_internal_id>_<filename_clean>
+        Fallback (legacy): <filename_clean>
         """
-        print(f"💾 [Nodo Save]: Guardando {len(chunks)} vectores en Redis para {filename_clean}...")
+        
+        # Determinar el ID del documento en Redis
+        if licitacion_internal_id and archivo_internal_id:
+            redis_doc_id = f"{licitacion_internal_id}_{archivo_internal_id}_{filename_clean}"
+        else:
+            print("⚠️ [SaveService] Usando ID Legacy (filename) por falta de IDs internos.")
+            redis_doc_id = filename_clean
+
+        print(f"💾 [Nodo Save]: Guardando {len(chunks)} vectores en Redis con ID: {redis_doc_id}...")
         
         r = redis.Redis(
             host=REDIS_HOST, 
@@ -41,12 +53,14 @@ class SaveService:
              if p > max_page:
                  max_page = p
         
-        parent_key = f"doc_raw:{filename_clean}"
+        parent_key = f"doc_raw:{redis_doc_id}"
         parent_data = {
             "filename": filename_clean,
             "original_path": file_path,
             "total_pages": max_page,
             "licitacion_id": licitacion_id,
+            "licitacion_internal_id": str(licitacion_internal_id) if licitacion_internal_id else "",
+            "archivo_internal_id": str(archivo_internal_id) if archivo_internal_id else "",
             "processed_at": timestamp,
             "status": "PROCESSED"
         }
@@ -66,21 +80,20 @@ class SaveService:
             chunk_type = meta_dict.get("type", "unknown")
             page = meta_dict.get("page", 1)
             
-            # Identificador base es el filename_clean
-            doc_id = filename_clean 
+            # Identificador base es el redis_doc_id
             
             if chunk_type == "element":
-                # doc_raw_page:{filename}:p{page}_e{elem_index}
+                # doc_raw_page:{id}:p{page}_e{elem_index}
                 elem_idx = meta_dict.get("element_index", 0)
                 # +1 al indice para igualar visualmente si empieza en 0
-                key = f"doc_raw_page:{doc_id}:p{page}_e{elem_idx+1}"
+                key = f"doc_raw_page:{redis_doc_id}:p{page}_e{elem_idx+1}"
             elif chunk_type == "full_page":
-                # doc_raw_page:{filename}:p{page}_full
-                key = f"doc_raw_page:{doc_id}:p{page}_full"
+                # doc_raw_page:{id}:p{page}_full
+                key = f"doc_raw_page:{redis_doc_id}:p{page}_full"
             else:
                 # Fallback genérico
                 chunk_id = str(uuid.uuid4())[:8]
-                key = f"doc_raw_page:{doc_id}:p{page}_{chunk_type}_{chunk_id}"
+                key = f"doc_raw_page:{redis_doc_id}:p{page}_{chunk_type}_{chunk_id}"
             
             # Preparar data
             data = {
@@ -98,3 +111,9 @@ class SaveService:
             
         pipeline.execute()
         print("✅ Guardado exitoso en Redis.")
+        
+        # --- NUEVO: Encolar para extracción semántica ---
+        # ELIMINADO: Ahora el BatchProcessor se encarga de notificar cuando TODOS los archivos terminan.
+        # queue_msg = json.dumps({ ... })
+        # r.rpush(queue_name, queue_msg)
+

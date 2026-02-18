@@ -67,6 +67,38 @@ class SaveToRedisNode:
         state["status"] = "ok"
         print(f"✅ Se guardaron {len(chunks)} fragmentos en Redis.")
         
+        # --- NUEVO: Encolar para extracción semántica ---
+        # Asumimos que el licitacion_id viene en el state, o usamos el filename como proxy si no está
+        lic_id = state.get("licitacion_id", "SIN_LICITACION_ID") 
+        # Si licitacion_id no esta definido, intentar extraer del nombre de carpeta o usar un default
+        
+        # El worker espera: {"licitacion_id": "...", "documento_ids": ["doc_1", ...]}
+        # Aquí documento_ids es una lista de prefijos de chunks o filenames. 
+        # En _load_documents_to_memory se usa el doc_id para buscar "doc_raw_page:{doc_id}:*"
+        # En este nodo las keys son "pdf:{filename}:chunk:{i}". 
+        # OJO: document-extractor guarda como "pdf:{filename}...", pero semantic-extractor lee "doc_raw_page:{id}..."
+        # HAY UN DESAJUSTE DE KEYS.
+        
+        # AJUSTE TEMPORAL: Encolar mensaje. (El usuario deberá corregir keys o loader después si no coinciden)
+        # Por ahora asumimos que el semantic worker sabrá qué hacer o que corregiremos el loader.
+        
+        queue_msg = json.dumps({
+            "licitacion_id": lic_id,
+            "documento_ids": [filename] 
+        })
+        
+        print(f"🔌 [DEBUG] Conectando a Redis en: {REDIS_HOST}:{REDIS_PORT} DB={REDIS_DB}")
+        
+        queue_name = "semantic_queue"
+        curr_len = r.llen(queue_name)
+        print(f"📊 [DEBUG] Longitud cola ANTES de push: {curr_len}")
+        
+        r.rpush(queue_name, queue_msg)
+        
+        new_len = r.llen(queue_name)
+        print(f"🚀 [DEBUG] Enviado a cola '{queue_name}': {queue_msg}")
+        print(f"📊 [DEBUG] Longitud cola DESPUES de push: {new_len}")
+        
         # Avanzar al siguiente PDF
         state["current_index"] = state.get("current_index", 0) + 1
         

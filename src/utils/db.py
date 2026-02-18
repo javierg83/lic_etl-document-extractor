@@ -28,9 +28,13 @@ def get_pending_files(licitacion_id: int):
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         query = """
-            SELECT id, nombre_archivo_org, ruta_almacenamiento 
-            FROM licitacion_archivos 
-            WHERE licitacion_id = %s AND (UPPER(estado_procesamiento) = 'PENDIENTE' OR estado_procesamiento IS NULL)
+            SELECT la.id, la.nombre_archivo_org, la.ruta_almacenamiento, 
+                   l.id_interno AS licitacion_internal_id, 
+                   la.id_interno AS archivo_internal_id,
+                   l.id AS licitacion_uuid
+            FROM licitacion_archivos la
+            JOIN licitaciones l ON la.licitacion_id = l.id
+            WHERE la.licitacion_id = %s AND (UPPER(la.estado_procesamiento) = 'PENDIENTE' OR la.estado_procesamiento IS NULL)
         """
         cursor.execute(query, (licitacion_id,))
         return cursor.fetchall()

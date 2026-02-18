@@ -34,7 +34,24 @@ class SaveNode:
              # Fallback si no viene limpio
              filename_clean = os.path.splitext(os.path.basename(current_pdf))[0]
 
-        SaveService.save_to_redis(licitacion_id, filename_clean, current_pdf, chunks)
+        # Obtener IDs internos para la llave de Redis
+        licitacion_internal_id = state.get("licitacion_internal_id")
+        file_internal_ids = state.get("file_internal_ids", {})
+        archivo_internal_id = file_internal_ids.get(current_pdf)
+
+        if not licitacion_internal_id or not archivo_internal_id:
+            print(f"⚠️ SaveNode: Faltan IDs internos para {filename_clean}. Usando comportamiento legacy (UUIDs/Nombre).")
+            # Podríamos optar por fallar, o dejar que el servicio maneje nulos si queremos compatibilidad.
+            # Por ahora pasamos None y que el servicio decida o use fallback.
+        
+        SaveService.save_to_redis(
+            licitacion_id=licitacion_id, 
+            filename_clean=filename_clean, 
+            file_path=current_pdf, 
+            chunks=chunks,
+            licitacion_internal_id=licitacion_internal_id,
+            archivo_internal_id=archivo_internal_id
+        )
         
         state["status"] = "ok"
         return state

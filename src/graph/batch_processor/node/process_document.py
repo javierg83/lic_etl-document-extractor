@@ -57,13 +57,28 @@ class ProcessDocumentNode:
         # Preparar input para el subgrafo
         filename_clean = os.path.splitext(os.path.basename(current_file))[0]
         
+        # Strip licitacion_id prefix if present (format: {uuid}_{filename})
+        lic_id = state.get("licitacion_id")
+        if lic_id and filename_clean.startswith(f"{lic_id}_"):
+            filename_clean = filename_clean[len(lic_id)+1:]
+        
         sub_input = {
             "pdf_files": [current_file],
             "current_index": 0,
             "current_pdf": current_file,
             "licitacion_id": state.get("licitacion_id"),
-            "filename_clean": filename_clean
+            "filename_clean": filename_clean,
+            # Pass internal IDs for Redis keys
+            "licitacion_internal_id": state.get("licitacion_internal_id"),
+            "file_internal_ids": state.get("file_internal_ids"),
+            "archivo_internal_id": file_ids.get(current_file) # Assuming file_ids might map to internal ID or use the dict
         }
+        
+        # Correction: file_ids in LoadPendingNode maps path -> UUID (id). 
+        # state["file_internal_ids"] maps path -> int (id_interno).
+        # We need the int one.
+        file_internal_ids = state.get("file_internal_ids", {})
+        sub_input["archivo_internal_id"] = file_internal_ids.get(current_file)
         
         # Invocación sincrónica del subgrafo
         result = document_processor.invoke(sub_input)
@@ -77,6 +92,25 @@ class ProcessDocumentNode:
             print(f"✅ [Batch] Finalizado: {os.path.basename(current_file)}")
             final_status = "PROCESADO"
             
+            # --- NUEVO: Acumular ID para trigger semántico ---
+            # Necesitamos el ID interno formato Redis: <lic_int>_<file_int>_<filename_clean>
+            # Ya lo calculamos en el subgrafo (SaveService), pero aquí lo reconstruimos o lo pasamos.
+            # Lo más seguro es reconstruirlo igual que SaveService.
+            lic_int = state.get("licitacion_internal_id")
+            file_int = file_ids.get(current_file) # Esto es UUID en state original... wait.
+            # Corrección: file_ids en LoadPendingNode es ruta->UUID. 
+            # file_internal_ids es ruta->int. Usemos ese.
+            file_int = file_internal_ids.get(current_file)
+            
+            if lic_int and file_int:
+                redis_doc_id = f"{lic_int}_{file_int}_{filename_clean}"
+                if "processed_files" not in state:
+                    state["processed_files"] = []
+                state["processed_files"].append(redis_doc_id)
+                print(f"📦 [Batch] Archivo agregado a lista de procesados: {redis_doc_id}")
+            else:
+                print(f"⚠️ [Batch] No se pudo generar ID Redis para {os.path.basename(current_file)} (Faltan IDs internos)")
+
         state["file_states"][current_file] = final_status
         
         # Actualización final en Base de Datos

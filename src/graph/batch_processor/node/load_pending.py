@@ -36,6 +36,16 @@ class LoadPendingNode:
             # Mapeo de ruta a ID de base de datos para facilitar actualizaciones de estado
             file_ids = {f["ruta_almacenamiento"]: f["id"] for f in files}
             
+            # NUEVO: Guardar IDs internos para usarlos en Redis
+            # Asumimos que todos los archivos son de la misma licitación, por lo que el ID interno de licitación es el mismo
+            if files:
+                state["licitacion_internal_id"] = files[0]["licitacion_internal_id"]
+                # Guardamos el UUID real de la licitación para usarlo en la cola semántica
+                state["licitacion_uuid"] = files[0]["licitacion_uuid"]
+            
+            # Mapa de archivo -> id_interno_archivo
+            state["file_internal_ids"] = {f["ruta_almacenamiento"]: f["archivo_internal_id"] for f in files}
+
             state["pdf_files"] = pdf_files
             state["file_ids"] = file_ids
             state["status"] = "ok" if pdf_files else "no_files"
