@@ -55,7 +55,7 @@ class ProcessDocumentNode:
             # ---------------------------------------
         
         # Preparar input para el subgrafo
-        filename_clean = os.path.splitext(os.path.basename(current_file))[0]
+        filename_clean = os.path.basename(current_file)
         
         # Strip licitacion_id prefix if present (format: {uuid}_{filename})
         lic_id = state.get("licitacion_id")
