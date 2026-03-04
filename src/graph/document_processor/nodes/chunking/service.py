@@ -17,8 +17,32 @@ class ChunkingService:
         all_chunks = []
         
         for page_data in pages_content:
-            text = page_data.get("text", "")
+            origin_flag = page_data.get("origin", "standard")
             page_num = page_data.get("page", 0)
+            sheet_name = page_data.get("sheet_name")
+            
+            # --- NUEVA LÓGICA PARA EXCEL ---
+            if origin_flag == "excel":
+                rows = page_data.get("rows", [])
+                for idx, row_text in enumerate(rows):
+                    if not row_text.strip():
+                        continue
+                    
+                    chunk_meta = {
+                        "page": page_num,
+                        "sheet_name": sheet_name,
+                        "origin": "excel",
+                        "type": "element",
+                        "element_index": idx
+                    }
+                    all_chunks.append({
+                        "text": row_text,
+                        "metadata": chunk_meta
+                    })
+                continue # Evitar el proceso estándar de PDF/Word
+            
+            # --- LÓGICA ESTÁNDAR PARA TEXTO (PDF/Word) ---
+            text = page_data.get("text", "")
             
             if not text.strip():
                 continue

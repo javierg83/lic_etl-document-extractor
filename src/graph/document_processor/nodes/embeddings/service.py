@@ -14,8 +14,18 @@ class EmbeddingsService:
             
         client = OpenAI(api_key=OPENAI_API_KEY)
         
-        # Preparamos textos para la API
-        texts = [chunk["text"].replace("\n", " ") for chunk in chunks]
+        # Preparamos textos para la API, evitando el límite de 8192 tokens
+        import tiktoken
+        encoding = tiktoken.get_encoding("cl100k_base")
+        
+        texts = []
+        for chunk in chunks:
+            text = chunk["text"].replace("\n", " ")
+            tokens = encoding.encode(text, disallowed_special=())
+            if len(tokens) > 8000:
+                print(f"   ⚠️ Limitando chunk de {len(tokens)} tokens a 8000 para evitar error 400.")
+                text = encoding.decode(tokens[:8000])
+            texts.append(text)
         
         try:
             response = client.embeddings.create(

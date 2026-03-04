@@ -11,3 +11,7 @@ psycopg2-binary
 Pillow
 langchain-text-splitters
 python-docx
+pandas
+openpyxl
+tabulate
+tiktoken

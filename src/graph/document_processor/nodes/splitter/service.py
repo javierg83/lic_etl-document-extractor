@@ -66,11 +66,26 @@ class SplitterService:
     @staticmethod
     def _split_excel(file_path: str):
         """
-        Placeholder para lógica de Excel
+        Analiza un archivo Excel usando pandas.
+        Genera un sub-documento por cada hoja (sheet) encontrada.
         """
+        import pandas as pd
+        excel_file = pd.ExcelFile(file_path)
+        sheet_names = excel_file.sheet_names
+        
+        sub_documents = []
+        for i, sheet_name in enumerate(sheet_names):
+            sub_documents.append({
+                "type": "sheet",
+                "page_number": i + 1,
+                "sheet_name": sheet_name,
+                "source_file": file_path,
+                "is_scanned": False
+            })
+            
         return {
             "type": "excel",
-            "sub_documents": [
-                {"type": "sheet", "sheet_name": "Sheet1", "source_file": file_path}
-            ]
+            "is_scanned": False,
+            "total_pages": len(sheet_names),
+            "sub_documents": sub_documents
         }
