@@ -1,3 +1,15 @@
+AI_CONFIG = {
+    "engine": "gemini",  # "openai" or "gemini"
+    "model": "gemini-2.5-pro",   # gemini-2.5-pro or gemini-2.5-flash
+    "temperature": 0.0
+}
+
+#AI_CONFIG = {
+#    "engine": "openai",  # "openai" or "gemini"
+#    "model": "gpt-4o",   # "gpt-4o", "gemini-1.5-pro", etc.
+#    "temperature": 0.0
+#}
+
 EXTRACT_TEXT_PROMPT = """
 You are an advanced document analysis AI. Your task is to analyze the image of a PDF page and extract its content in a structured JSON format.
 

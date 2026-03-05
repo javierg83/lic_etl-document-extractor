@@ -1,7 +1,6 @@
 import base64
 import fitz
-from openai import OpenAI
-from src.config import OPENAI_API_KEY
+from src.services.ai_engine.factory import AIProviderFactory
 
 class ExtractTextOcrNode:
     @staticmethod
@@ -18,9 +17,16 @@ class ExtractTextOcrNode:
     @staticmethod
     def _run(state: dict) -> dict:
         pdf_path = state.get("current_pdf")
-        print(f"🖼️ Extrayendo texto vía OCR (OpenAI): {pdf_path}")
+        print(f"🖼️ Extrayendo texto vía OCR (Factory): {pdf_path}")
         
-        client = OpenAI(api_key=OPENAI_API_KEY)
+        # Configuración específica para este nodo básico
+        AI_CONFIG = {
+            "engine": "openai",
+            "model": "gpt-4o",
+            "temperature": 0.0
+        }
+        
+        proveedor = AIProviderFactory.get_provider(AI_CONFIG)
         doc = fitz.open(pdf_path)
         pages_content = []
         
@@ -31,22 +37,17 @@ class ExtractTextOcrNode:
             img_bytes = pix.tobytes("png")
             base64_image = base64.b64encode(img_bytes).decode('utf-8')
             
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": "Extract all text from this image. Only provide the text found."},
-                            {
-                                 "type": "image_url",
-                                 "image_url": {"url": f"data:image/png;base64,{base64_image}"},
-                            },
-                        ],
-                    }
-                ],
+            system_prompt = "You are a simple OCR. Extract all text from this image."
+            prompt = "Only provide the text found."
+            
+            # Extract elements but we only care about raw text for this node
+            _, text, _, _ = proveedor.analyze_image(
+                image_b64=base64_image,
+                prompt=prompt,
+                system_prompt=system_prompt,
+                config=AI_CONFIG
             )
-            text = response.choices[0].message.content
+            
             pages_content.append({
                 "page": i + 1,
                 "text": text

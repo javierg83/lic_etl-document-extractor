@@ -1,9 +1,8 @@
 import base64
 import json
 import fitz
-from openai import OpenAI
-from src.config import OPENAI_API_KEY
-from .prompts import EXTRACT_TEXT_PROMPT
+from src.services.ai_engine.factory import AIProviderFactory
+from .prompts import EXTRACT_TEXT_PROMPT, AI_CONFIG
 from src.utils.image_filters import enhance_image_contrast
 from src.utils.pdf_utils import extract_page_image
 
@@ -16,7 +15,9 @@ class ExtractOcrService:
         """
         print(f"👁️ [Nodo ExtractOCR]: Iniciando extracción visual: {pdf_path}")
         
-        client = OpenAI(api_key=OPENAI_API_KEY)
+        # Instanciar el proveedor basado en la configuración del prompt
+        proveedor = AIProviderFactory.get_provider(AI_CONFIG)
+        
         doc = fitz.open(pdf_path)
         extracted_elements = []  # Lista plana de todos los elementos encontrados
         
@@ -35,39 +36,25 @@ class ExtractOcrService:
                 # 3. Codificar a Base64
                 base64_image = base64.b64encode(img_bytes).decode('utf-8')
                 
-                # 4. Llamada a OpenAI Vision
-                response = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": EXTRACT_TEXT_PROMPT},
-                                {
-                                     "type": "image_url",
-                                     "image_url": {"url": f"data:image/png;base64,{base64_image}"},
-                                },
-                            ],
-                        }
-                    ],
-                    response_format={"type": "json_object"},
-                    max_tokens=4096
+                # 4. Llamada a IA a través del Factory
+                system_prompt = "Devuelve un JSON con los elementos extraídos."
+                elementos, raw_response, tokens_in, tokens_out = proveedor.analyze_image(
+                    image_b64=base64_image,
+                    prompt=EXTRACT_TEXT_PROMPT,
+                    system_prompt=system_prompt,
+                    config=AI_CONFIG
                 )
-                
-                content_str = response.choices[0].message.content
-                data = json.loads(content_str)
-                elements = data.get("elements", [])
                 
                 # Resumen de elementos
                 type_counts = {}
-                for el in elements:
+                for el in elementos:
                     t = el.get("type", "unknown")
                     type_counts[t] = type_counts.get(t, 0) + 1
                 
-                print(f"      ✅ Elementos encontrados: {len(elements)} {type_counts}")
+                print(f"      ✅ Elementos encontrados: {len(elementos)} {type_counts}")
                 
                 # 5. Enriquecer elementos con metadatos de página
-                for idx, el in enumerate(elements):
+                for idx, el in enumerate(elementos):
                     el["pagina"] = i + 1
                     el["pdf_path"] = pdf_path
                     el["element_index"] = idx

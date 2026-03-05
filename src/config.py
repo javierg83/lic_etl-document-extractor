@@ -18,6 +18,11 @@ REDIS_USERNAME = get_env_variable("REDIS_USERNAME", "default")
 REDIS_PASSWORD = get_env_variable("REDIS_PASSWORD")
 REDIS_DB = int(get_env_variable("REDIS_DB", "0"))
 OPENAI_API_KEY = get_env_variable("OPENAI_API_KEY")
+
+# AI Engine Variables
+DEFAULT_AI_PROVIDER = get_env_variable("DEFAULT_AI_PROVIDER", "openai", required=False)
+GEMINI_API_KEY = get_env_variable("GEMINI_API_KEY", required=False)
+
 DEBUG_EXPORT_JSON = get_env_variable("DEBUG_EXPORT_JSON", "false", required=False).lower() == "true"
 DB_POSTGRES_NAME = get_env_variable("DB_POSTGRES_NAME")
 DB_POSTGRES_USER = get_env_variable("DB_POSTGRES_USER")
