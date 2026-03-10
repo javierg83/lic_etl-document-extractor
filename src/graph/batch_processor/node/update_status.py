@@ -27,12 +27,23 @@ class UpdateLicitacionStatusNode:
         conn = get_db_connection()
         try:
             with conn.cursor() as cursor:
-                query = """
-                    UPDATE licitaciones 
-                    SET estado = %s 
-                    WHERE id = %s
-                """
-                cursor.execute(query, (target_status, licitacion_id))
+                tipo_adquisicion = state.get("tipo_adquisicion")
+                
+                if tipo_adquisicion:
+                    query = """
+                        UPDATE licitaciones 
+                        SET estado = %s, tipo_licitacion = %s
+                        WHERE id = %s
+                    """
+                    cursor.execute(query, (target_status, tipo_adquisicion, licitacion_id))
+                else:
+                    query = """
+                        UPDATE licitaciones 
+                        SET estado = %s 
+                        WHERE id = %s
+                    """
+                    cursor.execute(query, (target_status, licitacion_id))
+                    
                 conn.commit()
             print(f"✅ [Batch] Estado actualizado a '{target_status}'.")
         except Exception as e:

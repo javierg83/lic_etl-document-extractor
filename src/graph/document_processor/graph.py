@@ -3,6 +3,7 @@ from langgraph.graph import StateGraph, END
 
 # Importación de nuevos nodos refactorizados
 from src.graph.document_processor.nodes.classify.node import ClassifyNode
+from src.graph.document_processor.nodes.classify_business.node import ClassifyBusinessNode
 from src.graph.document_processor.nodes.splitter.node import SplitterNode
 from src.graph.document_processor.nodes.extract_standard.node import ExtractStandardNode
 from src.graph.document_processor.nodes.extract_ocr.node import ExtractOcrNode
@@ -14,6 +15,7 @@ from src.graph.document_processor.nodes.save.node import SaveNode
 
 # Envoltorios de ejecución
 def node_classify(state: dict) -> dict: return ClassifyNode.execute(state)
+def node_classify_business(state: dict) -> dict: return ClassifyBusinessNode.execute(state)
 def node_splitter(state: dict) -> dict: return SplitterNode.execute(state)
 def node_extract_standard(state: dict) -> dict: return ExtractStandardNode.execute(state)
 def node_extract_ocr(state: dict) -> dict: return ExtractOcrNode.execute(state)
@@ -32,7 +34,11 @@ def router_extraction(state: dict) -> Literal["extract_standard", "extract_ocr",
     is_scanned = state.get("is_scanned", False)
     
     if file_type == "pdf":
-        return "extract_ocr" if is_scanned else "extract_standard"
+        tipo_adquisicion = state.get("tipo_adquisicion", "LICITACION_PUBLICA")
+        if is_scanned or tipo_adquisicion == "COMPRA_AGIL":
+            return "extract_ocr"
+        else:
+            return "extract_standard"
     elif file_type == "excel":
         return "extract_excel"
     elif file_type == "word":
@@ -46,6 +52,7 @@ def build_document_processor():
 
     # Nodos
     workflow.add_node("classify", node_classify)
+    workflow.add_node("classify_business", node_classify_business)
     workflow.add_node("splitter", node_splitter) # Aunque por ahora es passthrough en la cadena lineal
     
     workflow.add_node("extract_standard", node_extract_standard)
@@ -60,8 +67,9 @@ def build_document_processor():
     # Definición del Flujo
     workflow.set_entry_point("classify")
     
-    # Classify -> Splitter
-    workflow.add_edge("classify", "splitter")
+    # Classify -> Classify Business -> Splitter
+    workflow.add_edge("classify", "classify_business")
+    workflow.add_edge("classify_business", "splitter")
 
     # Splitter -> Router -> Extractores
     # Nota: El Router usa el state enriquecido por Classify y Splitter

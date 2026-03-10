@@ -83,6 +83,11 @@ class ProcessDocumentNode:
         # Invocación sincrónica del subgrafo
         result = document_processor.invoke(sub_input)
         
+        # Ascender metadata detectada al grafo padre para DB persistence
+        tipo_adq = result.get("tipo_adquisicion")
+        if tipo_adq:
+            state["tipo_adquisicion"] = tipo_adq
+        
         # Actualizar estado final del archivo baseado en el resultado del subgrafo
         final_status = "PROCESADO"
         if result.get("status") == "failed":

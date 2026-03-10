@@ -23,8 +23,11 @@ class ExtractOcrNode:
              print("⚠️ ExtractOcrNode: No hay PDF definido en state['current_pdf']")
              return state
 
+        licitacion_id = state.get("licitacion_id", "default")
+        tipo_adquisicion = state.get("tipo_adquisicion", "LICITACION_PUBLICA")
+        
         # Llamamos al servicio
-        pages_content = ExtractOcrService.extract_from_pdf(pdf_path)
+        pages_content = ExtractOcrService.extract_from_pdf(pdf_path, licitacion_id=licitacion_id, tipo_adquisicion=tipo_adquisicion)
         
         # Actualizamos state
         # Actualizamos state
